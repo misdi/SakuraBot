@@ -12,7 +12,7 @@ const {
 const models = require("../models_leonardo");
 const sdk = require("api")("@leonardoai/v1.0#28807z41owlgnis8jg");
 
-async function saveImage(url) {
+async function saveImage(url, username, generationData) {
   try {
     const response = await axios.get(url, { responseType: "arraybuffer" });
     const contentDisposition = response.headers["content-disposition"];
@@ -20,25 +20,44 @@ async function saveImage(url) {
       ? contentDisposition.match(/filename="?(.+?)"?$/)[1]
       : path.basename(url);
 
-    const parentFolderPath = path.join(__dirname, "..");
-    const folderPath = path.join(parentFolderPath, "generated");
-    const baseFileName = path.parse(fileName).name;
-    const fileExt = path.parse(fileName).ext;
+    const parentFolderPath = path.join(__dirname, "..", "generated");
+    const userFolderPath = path.join(parentFolderPath, username);
+
+    if (!fs.existsSync(parentFolderPath)) {
+      fs.mkdirSync(parentFolderPath, { recursive: true });
+    }
+
+    if (!fs.existsSync(userFolderPath)) {
+      fs.mkdirSync(userFolderPath, { recursive: true });
+    }
 
     let newFileName = fileName;
     let count = 1;
-    while (fs.existsSync(path.join(folderPath, newFileName))) {
+    const fileExt = path.extname(fileName);
+    const baseFileName = path.basename(fileName, fileExt);
+
+    while (fs.existsSync(path.join(userFolderPath, newFileName))) {
       newFileName = `${baseFileName}_${count}${fileExt}`;
       count++;
     }
 
-    const filePath = path.join(folderPath, newFileName);
-
-    if (!fs.existsSync(folderPath)) {
-      fs.mkdirSync(folderPath, { recursive: true });
-    }
+    const filePath = path.join(userFolderPath, newFileName);
 
     fs.writeFileSync(filePath, Buffer.from(response.data, "binary"));
+
+    // Save generation info in a text file
+    let infoFileName = `${baseFileName}.txt`;
+    count = 1;
+
+    while (fs.existsSync(path.join(userFolderPath, infoFileName))) {
+      infoFileName = `${baseFileName}_${count}.txt`;
+      count++;
+    }
+
+    const infoFilePath = path.join(userFolderPath, infoFileName);
+    const generationInfo = JSON.stringify(generationData, null, 2);
+    fs.writeFileSync(infoFilePath, generationInfo);
+
     return filePath;
   } catch (error) {
     console.error("Error saving image:", error);
@@ -54,7 +73,22 @@ async function getGenerationById(id_data) {
     console.error(err);
   }
 }
-async function createGeneration(prompt, negative_prompt, model) {
+async function getUserSelf() {
+  try {
+    const { data } = await sdk.getUserSelf();
+    return data;
+  } catch (err) {
+    console.error(err);
+  }
+}
+async function createGeneration(
+  prompt,
+  negative_prompt,
+  model,
+  width,
+  height,
+  count
+) {
   sdk.auth(process.env.LEONARDO_API_KEY);
 
   try {
@@ -62,9 +96,9 @@ async function createGeneration(prompt, negative_prompt, model) {
       prompt: prompt,
       negative_prompt: negative_prompt,
       modelId: model,
-      num_images: 1,
-      width: 640,
-      height: 832,
+      num_images: count,
+      width: width || 640,
+      height: height || 832,
       public: false,
       guidance_scale: 7,
       presetStyle: "LEONARDO",
@@ -72,8 +106,26 @@ async function createGeneration(prompt, negative_prompt, model) {
     const id_generations = data.sdGenerationJob.generationId;
     return id_generations;
   } catch (err) {
-    console.error(err);
+    await interaction.editReply({
+      content:
+        "The prompt you provided contains NSFW (Not Safe for Work) content. Please provide a different prompt.",
+    });
+    return;
   }
+}
+
+function parsePrompt(prompt) {
+  let width = 640;
+  let height = 832;
+
+  const resMatch = prompt.match(/--res\s+(\d+):(\d+)/i);
+  if (resMatch) {
+    width = parseInt(resMatch[1]);
+    height = parseInt(resMatch[2]);
+    prompt = prompt.replace(resMatch[0], "").trim();
+  }
+
+  return { prompt, width, height };
 }
 
 function getModelNameByValue(modelValue) {
@@ -90,33 +142,61 @@ module.exports = {
     try {
       await interaction.deferReply();
 
-      const prompt = interaction.options.getString("prompt");
+      let prompt = interaction.options.getString("prompt");
       const negative_prompt = interaction.options.getString("negative_prompt");
       const model =
         interaction.options.getString("model_name") || models[0].value;
+      let count = interaction.options.getInteger("count") || 1;
+      count = Math.min(count, 4);
+      const { prompt: parsedPrompt, width, height } = parsePrompt(prompt);
+      prompt = parsedPrompt;
 
       const id_generation = await createGeneration(
         prompt,
         negative_prompt,
-        model
+        model,
+        width,
+        height,
+        count
       );
-      await new Promise((resolve) => setTimeout(resolve, 20000));
+      const userData = await getUserSelf();
+      const initialTokens = userData.user_details[0].subscriptionTokens;
+
+      const waitTime = count === 3 ? 30000 : count === 4 ? 50000 : 20000;
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
 
       const generationData = await getGenerationById(id_generation);
-      const generated_image = generationData.generations_by_pk.generated_images;
-      const imageUrl = generated_image[0].url;
-      const savedImagePath = await saveImage(imageUrl);
-      const savedImageFileName = path.basename(savedImagePath);
-      const seed = generationData.generations_by_pk.seed;
+      const generatedImages = generationData.generations_by_pk.generated_images;
+      const imageUrls = generatedImages.map((image) => image.url);
 
-      const row = new ActionRowBuilder().addComponents(
+      const updatedUserData = await getUserSelf();
+      const updatedTokens = updatedUserData.user_details[0].subscriptionTokens;
+
+      const tokensUsed = initialTokens - updatedTokens;
+
+      const savedImagePaths = [];
+      for (const imageUrl of imageUrls) {
+        const savedImagePath = await saveImage(
+          imageUrl,
+          interaction.user.username,
+          generationData
+        );
+        savedImagePaths.push(savedImagePath);
+      }
+      const imageFiles = savedImagePaths.map((imagePath) => ({
+        attachment: imagePath,
+        name: path.basename(imagePath),
+      }));
+
+      const buttons = imageUrls.map((imageUrl, index) =>
         new ButtonBuilder()
-          .setLabel(`Download`)
+          .setLabel(`Download ${index + 1}`)
           .setStyle(ButtonStyle.Link)
           .setURL(imageUrl)
           .setEmoji("1101133529607327764")
       );
-      //   if (countText !== "") {
+      const row = new ActionRowBuilder().addComponents(...buttons);
+
       const resultEmbed = new EmbedBuilder()
         .setTitle("Leonardo AI")
         .addFields({ name: "Prompt", value: prompt })
@@ -126,25 +206,25 @@ module.exports = {
           value: getModelNameByValue(model),
         })
         .addFields({
-          name: "Seed",
-          value: seed !== undefined ? seed.toString() : "-",
+          name: "Image Resolution",
+          value: `${width}:${height}`,
         })
-        // .setImage(imageUrl)
-        .setImage(`attachment://${savedImageFileName}`)
+        .addFields({
+          name: "Token Used",
+          value: tokensUsed.toString() || "-",
+        })
+        .addFields({
+          name: "Token Balance",
+          value: updatedTokens.toString() || "-",
+        })
         .setColor("#44a3e3")
         .setFooter({
           text: `Requested by ${interaction.user.username}`,
           iconURL: interaction.user.displayAvatarURL({ dynamic: true }),
         });
-
       await interaction.editReply({
         embeds: [resultEmbed],
-        files: [
-          {
-            attachment: savedImagePath,
-            name: savedImageFileName,
-          },
-        ],
+        files: imageFiles,
         components: [row],
       });
     } catch (error) {
@@ -178,6 +258,12 @@ module.exports = {
         description: "The image model",
         type: ApplicationCommandOptionType.String,
         choices: models,
+        required: false,
+      },
+      {
+        name: "count",
+        description: "Number of images to generate",
+        type: ApplicationCommandOptionType.Integer,
         required: false,
       },
     ],
