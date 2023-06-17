@@ -6,7 +6,7 @@ const {
     ButtonStyle,
     ActionRowBuilder,
   } = require('discord.js');
-  const models = require('../models');
+  const models = require('../models_list');
   
   module.exports = {
     run: async ({ interaction }) => {
@@ -20,7 +20,7 @@ const {
         });
   
         const prompt = interaction.options.getString('prompt');
-        const model = interaction.options.getString('model') || models[0].value;
+        const model = interaction.options.getString('model_name') || models[0].value;
   
         const output = await replicate.run(model, { input: { prompt } });
   
@@ -67,7 +67,7 @@ const {
           required: true,
         },
         {
-          name: 'model',
+          name: 'model_name',
           description: 'The image model',
           type: ApplicationCommandOptionType.String,
           choices: models,

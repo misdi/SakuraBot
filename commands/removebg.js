@@ -8,7 +8,7 @@ require("dotenv").config();
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("removebg")
-    .setDescription("Upload an image")
+    .setDescription("Remove Background Image")
     .addStringOption((option) =>
       option.setName("image_url")
         .setDescription("URL of the image")
