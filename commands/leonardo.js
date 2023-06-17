@@ -87,6 +87,7 @@ async function createGeneration(
   model,
   width,
   height,
+  promptMagic,
   count
 ) {
   sdk.auth(process.env.LEONARDO_API_KEY);
@@ -102,6 +103,7 @@ async function createGeneration(
       public: false,
       guidance_scale: 7,
       presetStyle: "LEONARDO",
+      promptMagic: promptMagic,
     });
     const id_generations = data.sdGenerationJob.generationId;
     return id_generations;
@@ -117,6 +119,7 @@ async function createGeneration(
 function parsePrompt(prompt) {
   let width = 640;
   let height = 832;
+  let promptMagic = false;
 
   const resMatch = prompt.match(/--res\s+(\d+):(\d+)/i);
   if (resMatch) {
@@ -124,8 +127,12 @@ function parsePrompt(prompt) {
     height = parseInt(resMatch[2]);
     prompt = prompt.replace(resMatch[0], "").trim();
   }
+  if (/\s+--pm/.test(prompt)) {
+    promptMagic = true;
+    prompt = prompt.replace(/--pm/, "").trim();
+  }
 
-  return { prompt, width, height };
+  return { prompt, width, height, promptMagic };
 }
 
 function getModelNameByValue(modelValue) {
@@ -148,7 +155,12 @@ module.exports = {
         interaction.options.getString("model_name") || models[0].value;
       let count = interaction.options.getInteger("count") || 1;
       count = Math.min(count, 4);
-      const { prompt: parsedPrompt, width, height } = parsePrompt(prompt);
+      const {
+        prompt: parsedPrompt,
+        width,
+        height,
+        promptMagic,
+      } = parsePrompt(prompt);
       prompt = parsedPrompt;
 
       const id_generation = await createGeneration(
@@ -157,6 +169,7 @@ module.exports = {
         model,
         width,
         height,
+        promptMagic,
         count
       );
       const userData = await getUserSelf();
@@ -210,13 +223,17 @@ module.exports = {
           value: `${width}:${height}`,
         })
         .addFields({
-          name: "Token Used",
-          value: tokensUsed.toString() || "-",
+          name: "Prompt Magic",
+          value: promptMagic.toString() || "-",
         })
         .addFields({
-          name: "Token Balance",
-          value: updatedTokens.toString() || "-",
+          name: "Token",
+          value: `Used : ${tokensUsed.toString()|| "-"} | Balance ${updatedTokens.toString()|| "-"}`,
         })
+        // .addFields({
+        //   name: "Token Balance",
+        //   value: updatedTokens.toString() || "-",
+        // })
         .setColor("#44a3e3")
         .setFooter({
           text: `Requested by ${interaction.user.username}`,
