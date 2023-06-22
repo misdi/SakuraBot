@@ -2,6 +2,8 @@
 
 SakuraBot is a Discord bot that utilizes the power of the OpenAI GPT-3.5 Turbo model to provide advanced language processing capabilities within your Discord server. With SakuraBot, you can generate natural language responses, engage in conversations, and perform various language-based tasks.
 
+**We have added some feature for generated image and we focus on Leonardo.ai**
+
 
 ## DEMO
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/f2XVL9sho1g/0.jpg)](https://www.youtube.com/watch?v=f2XVL9sho1g)
