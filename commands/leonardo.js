@@ -203,12 +203,25 @@ module.exports = {
 
       const buttons = imageUrls.map((imageUrl, index) =>
         new ButtonBuilder()
-          .setLabel(`Download ${index + 1}`)
+          .setLabel(`${index + 1}`)
           .setStyle(ButtonStyle.Link)
           .setURL(imageUrl)
           .setEmoji("1101133529607327764")
       );
       const row = new ActionRowBuilder().addComponents(...buttons);
+
+      const regenerateButton = new ButtonBuilder()
+        .setCustomId("regenerateButton")
+        .setLabel("Regenerate")
+        .setStyle(ButtonStyle.Success);
+      const remixButton = new ButtonBuilder()
+        .setCustomId("remixButton")
+        .setLabel("Remix")
+        .setStyle(ButtonStyle.Success);
+      // row.addComponents(regenerateButton, remixButton);
+      const buttonRow = new ActionRowBuilder()
+        .addComponents(regenerateButton)
+        .addComponents(remixButton);
 
       const resultEmbed = new EmbedBuilder()
         .setTitle("Leonardo AI")
@@ -228,12 +241,14 @@ module.exports = {
         })
         .addFields({
           name: "Token",
-          value: `Used : ${tokensUsed.toString()|| "-"} | Balance ${updatedTokens.toString()|| "-"}`,
+          value: `Used : ${tokensUsed.toString() || "-"} | Balance ${
+            updatedTokens.toString() || "-"
+          }`,
         })
-        // .addFields({
-        //   name: "Token Balance",
-        //   value: updatedTokens.toString() || "-",
-        // })
+        .addFields({
+          name: "Count",
+          value: count.toString() || "1",
+        })
         .setColor("#44a3e3")
         .setFooter({
           text: `Requested by ${interaction.user.username}`,
@@ -242,12 +257,12 @@ module.exports = {
       await interaction.editReply({
         embeds: [resultEmbed],
         files: imageFiles,
-        components: [row],
+        components: [row, buttonRow],
       });
     } catch (error) {
       const errEmbed = new EmbedBuilder()
-        .setTitle("An error occurred")
-        .setDescription("```" + error + "```")
+        // .setTitle("An error occurred")
+        .setDescription("Mungkin NSFW atau resolusi tidak sesuai")
         .setColor(0xe32424);
 
       interaction.editReply({ embeds: [errEmbed] });

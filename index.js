@@ -3,10 +3,14 @@ require("dotenv").config();
 
 const { CommandHandler } = require("djs-commander");
 const path = require("path");
+const fs = require("fs");
+const axios = require("axios");
+const { saveImageAndText } = require("./saveImageAndText");
 
 //Prepare to connect to the Discord API
 const {
   Client,
+  Events,
   GatewayIntentBits,
   ApplicationCommandOptionType,
   EmbedBuilder,
@@ -28,6 +32,7 @@ const client = new Client({
 
 //Prepare connection to OpenAI API
 const { Configuration, OpenAIApi } = require("openai");
+const eventHandler = require("./handler/eventHandler");
 const configuration = new Configuration({
   organization: process.env.OPENAI_ORG,
   apiKey: process.env.OPENAI_KEY,
@@ -39,8 +44,10 @@ new CommandHandler({
   commandsPath: path.join(__dirname, "commands"), // The commands directory
   eventsPath: path.join(__dirname, "events"), // The events directory
   // validationsPath: path.join(__dirname, 'validations'), // Only works if commandsPath is provided
-  // testServer: '1081599050912120863', // To register guild-based commands (if it's not provided commands will be registered globally)
+  // testServer: '', // To register guild-based commands (if it's not provided commands will be registered globally)
 });
+
+eventHandler(client);
 
 client.on("messageReactionAdd", async (reaction, user) => {
   if (user.bot) return; // Ignore reactions from bots
@@ -51,7 +58,7 @@ client.on("messageReactionAdd", async (reaction, user) => {
     const attachments = message.attachments;
     const textContent = message.content;
     const textEmbed = message.embeds;
-    const originalMessageLink = message.url; 
+    const originalMessageLink = message.url;
     if (attachments.size > 0) {
       attachments.forEach(async (attachment) => {
         try {
@@ -78,10 +85,14 @@ client.on("messageReactionAdd", async (reaction, user) => {
           }
 
           if (textEmbed.length > 0) {
-            if (textEmbed[0].data.image) resultEmbed.setImage(textEmbed[0].data.image.url);
-            if (textEmbed[0].data.title) resultEmbed.setTitle(textEmbed[0].data.title);
-            if (textEmbed[0].data.fields) resultEmbed.addFields(textEmbed[0].data.fields);
-            if (textEmbed[0].data.footer) resultEmbed.setFooter(textEmbed[0].data.footer);
+            if (textEmbed[0].data.image)
+              resultEmbed.setImage(textEmbed[0].data.image.url);
+            if (textEmbed[0].data.title)
+              resultEmbed.setTitle(textEmbed[0].data.title);
+            if (textEmbed[0].data.fields)
+              resultEmbed.addFields(textEmbed[0].data.fields);
+            if (textEmbed[0].data.footer)
+              resultEmbed.setFooter(textEmbed[0].data.footer);
           }
 
           resultEmbed.setImage(downloadLink);
@@ -114,10 +125,14 @@ client.on("messageReactionAdd", async (reaction, user) => {
 
       if (textEmbed.length > 0) {
         if (textEmbed.length > 0) {
-          if (textEmbed[0].data.image) resultEmbed.setImage(textEmbed[0].data.image.url);
-          if (textEmbed[0].data.title) resultEmbed.setTitle(textEmbed[0].data.title);
-          if (textEmbed[0].data.fields) resultEmbed.addFields(textEmbed[0].data.fields);
-          if (textEmbed[0].data.footer) resultEmbed.setFooter(textEmbed[0].data.footer);
+          if (textEmbed[0].data.image)
+            resultEmbed.setImage(textEmbed[0].data.image.url);
+          if (textEmbed[0].data.title)
+            resultEmbed.setTitle(textEmbed[0].data.title);
+          if (textEmbed[0].data.fields)
+            resultEmbed.addFields(textEmbed[0].data.fields);
+          if (textEmbed[0].data.footer)
+            resultEmbed.setFooter(textEmbed[0].data.footer);
         }
       }
 
@@ -131,6 +146,17 @@ client.on("messageReactionAdd", async (reaction, user) => {
 
 client.on("messageCreate", async function (message) {
   try {
+    //start for saving the images : work for MJ bot only id : 936929561302675456
+    if (message.author.id === "936929561302675456") {
+      if (
+        (message.attachments.size > 0 && message.content) ||
+        message.attachments.size > 1
+      ) {
+        saveImageAndText(message);
+      }
+    }
+    //end of saving images.
+
     if (message.author.bot) return;
 
     let conversationLog = [
@@ -240,5 +266,9 @@ function splitContent(content, maxLength) {
 
   return chunks;
 }
+
+
+
+
 
 client.login(process.env.DISCORD_TOKEN);

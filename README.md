@@ -6,6 +6,8 @@ SakuraBot is a Discord bot that utilizes the power of the OpenAI GPT-3.5 Turbo m
 ## DEMO
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/f2XVL9sho1g/0.jpg)](https://www.youtube.com/watch?v=f2XVL9sho1g)
 
+![Screenshot](Image_generated.png)
+
 
 
 ## Features
@@ -61,10 +63,6 @@ Once SakuraBot is installed and running, you can interact with the bot in your D
 ## Contributing
 
 Contributions to SakuraBot are welcome! If you have any suggestions, bug reports, or feature requests, please open an issue on the GitHub repository. If you'd like to contribute code, please submit a pull request.
-
-## License
-
-SakuraBot is released under the [MIT License](LICENSE).
 
 ## Disclaimer
 
