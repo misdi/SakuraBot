@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google-ai/generativelanguage": "^0.2.0",
     "@huggingface/inference": "^2.5.1",
     "api": "^5.0.8",
     "axios": "^1.4.0",
@@ -19,6 +20,7 @@
     "form-data": "^4.0.0",
     "form-data-encoder": "^3.0.0",
     "fs": "^0.0.1-security",
+    "google-auth-library": "^8.8.0",
     "got": "^13.0.0",
     "lodash": "^4.17.21",
     "node-fetch": "^3.3.1",

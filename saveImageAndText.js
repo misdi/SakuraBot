@@ -2,8 +2,8 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
-const saveFolderPath = "./saved_images/";
-// const saveFolderPath = 'H:/Shared drives/Image-Gallery/MidJourney_Images'; //gdrive folder
+// const saveFolderPath = "./saved_images/";
+const saveFolderPath = 'H:/Shared drives/Image-Gallery/MidJourney_Images'; //gdrive folder
 
 
 async function saveImageAndText(message) {
@@ -37,7 +37,7 @@ async function saveImageAndText(message) {
           writer.on("finish", resolve);
           writer.on("error", reject);
         });
-        console.log(`Saved ${newFileName} successfully!`);
+        console.log(`Saved ${newFileName}`);
       } catch (error) {
         console.error(`Error saving ${newFileName}:`, error);
       }
@@ -45,19 +45,19 @@ async function saveImageAndText(message) {
   }
 
   // Save the message text
-  if (message.content) {
-    const textContent = `User: ${message.author.tag}\nContent: ${message.content}`;
-    const textFileName = `${uniqueId}_${message.id}.txt`;
-    const textFilePath = path.join(folderPath, textFileName);
+  // if (message.content) {
+  //   const textContent = `User: ${message.author.tag}\nContent: ${message.content}`;
+  //   const textFileName = `${uniqueId}_${message.id}.txt`;
+  //   const textFilePath = path.join(folderPath, textFileName);
 
-    fs.writeFile(textFilePath, textContent, (err) => {
-      if (err) {
-        console.error(`Error saving message text for ${textFileName}:`, err);
-      } else {
-        console.log(`Saved message text for ${textFileName} successfully!`);
-      }
-    });
-  }
+  //   fs.writeFile(textFilePath, textContent, (err) => {
+  //     if (err) {
+  //       console.error(`Error saving message text for ${textFileName}:`, err);
+  //     } else {
+  //       console.log(`Saved message text for ${textFileName} successfully!`);
+  //     }
+  //   });
+  // }
 }
 
 function getCurrentDate() {

@@ -88,7 +88,12 @@ async function createGeneration(
   width,
   height,
   promptMagic,
-  count
+  count,
+  pmv,
+  presetStyle,
+  alchemy,
+  highContrast,
+  public
 ) {
   sdk.auth(process.env.LEONARDO_API_KEY);
 
@@ -100,10 +105,16 @@ async function createGeneration(
       num_images: count,
       width: width || 640,
       height: height || 832,
-      public: false,
+      public: public,
       guidance_scale: 7,
-      presetStyle: "LEONARDO",
+      // presetStyle: "LEONARDO",
+      presetStyle: presetStyle,
+      // expandedDomain: true,
       promptMagic: promptMagic,
+      promptMagicVersion: pmv,
+      highContrast: highContrast,
+      alchemy: alchemy,
+      // photoReal:true,
     });
     const id_generations = data.sdGenerationJob.generationId;
     return id_generations;
@@ -120,6 +131,12 @@ function parsePrompt(prompt) {
   let width = 640;
   let height = 832;
   let promptMagic = false;
+  let pmv = "v2";
+  let presetStyle = "LEONARDO";
+  let alchemy = false;
+  let highContrast = false;
+  let public = false;
+
 
   const resMatch = prompt.match(/--res\s+(\d+):(\d+)/i);
   if (resMatch) {
@@ -127,12 +144,48 @@ function parsePrompt(prompt) {
     height = parseInt(resMatch[2]);
     prompt = prompt.replace(resMatch[0], "").trim();
   }
+  if (/\s+--alchemy/.test(prompt)) {
+    alchemy = true;
+    prompt = prompt.replace(/--alchemy/, "").trim();
+  }
+
+  if (/\s+--hc/.test(prompt)) {
+    highContrast = true;
+    prompt = prompt.replace(/--hc/, "").trim();
+  }
+
   if (/\s+--pm/.test(prompt)) {
     promptMagic = true;
     prompt = prompt.replace(/--pm/, "").trim();
   }
 
-  return { prompt, width, height, promptMagic };
+  if (/\s+--public/.test(prompt)) {
+    public = true;
+    prompt = prompt.replace(/--public/, "").trim();
+  }
+
+  if (/\s+--pmv3/.test(prompt)) {
+    pmv = "v3";
+    prompt = prompt.replace(/--pmv3/, "").trim();
+  }
+
+  const presetStyleMatch = prompt.match(/--style\s+(\w+)/i);
+  if (presetStyleMatch) {
+    presetStyle = presetStyleMatch[1].toUpperCase(); // Convert to uppercase
+    prompt = prompt.replace(presetStyleMatch[0], "").trim();
+  }
+
+  return {
+    prompt,
+    width,
+    height,
+    promptMagic,
+    pmv,
+    presetStyle,
+    alchemy,
+    highContrast,
+    public
+  };
 }
 
 function getModelNameByValue(modelValue) {
@@ -150,6 +203,7 @@ module.exports = {
       await interaction.deferReply();
 
       let prompt = interaction.options.getString("prompt");
+      let fullPrompt = prompt;
       const negative_prompt = interaction.options.getString("negative_prompt");
       const model =
         interaction.options.getString("model_name") || models[0].value;
@@ -160,6 +214,11 @@ module.exports = {
         width,
         height,
         promptMagic,
+        pmv,
+        presetStyle,
+        alchemy,
+        highContrast,
+        public
       } = parsePrompt(prompt);
       prompt = parsedPrompt;
 
@@ -170,7 +229,12 @@ module.exports = {
         width,
         height,
         promptMagic,
-        count
+        count,
+        pmv,
+        presetStyle,
+        alchemy,
+        highContrast,
+        public
       );
       const userData = await getUserSelf();
       const initialTokens = userData.user_details[0].subscriptionTokens;
@@ -186,6 +250,11 @@ module.exports = {
       const updatedTokens = updatedUserData.user_details[0].subscriptionTokens;
 
       const tokensUsed = initialTokens - updatedTokens;
+
+      var alchemyText = "-";
+      if (alchemy == true) {
+        alchemyText = "🧪 Alchemy";
+      }
 
       const savedImagePaths = [];
       for (const imageUrl of imageUrls) {
@@ -236,8 +305,19 @@ module.exports = {
           value: `${width}:${height}`,
         })
         .addFields({
+          name: "Pipeline",
+          value: alchemyText.toString(),
+        })
+        .addFields({
           name: "Prompt Magic",
-          value: promptMagic.toString() || "-",
+          value: `${promptMagic.toString() || "-"} | ${
+            pmv.toString() || "-"
+          }`,
+          // value: promptMagic.toString() || "-",
+        })
+        .addFields({
+          name: "Preset",
+          value: presetStyle.toString() || "-",
         })
         .addFields({
           name: "Token",
@@ -246,8 +326,8 @@ module.exports = {
           }`,
         })
         .addFields({
-          name: "Count",
-          value: count.toString() || "1",
+          name: "full_Prompt",
+          value: fullPrompt.toString() || "-",
         })
         .setColor("#44a3e3")
         .setFooter({
