@@ -14,6 +14,7 @@
     "@huggingface/inference": "^2.5.1",
     "api": "^5.0.8",
     "axios": "^1.4.0",
+    "clarifai-nodejs-grpc": "^9.9.2",
     "discord.js": "^14.11.0",
     "djs-commander": "^0.0.50",
     "dotenv": "^16.1.4",

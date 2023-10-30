@@ -115,6 +115,11 @@ const { Configuration, OpenAIApi } = require("openai");
 const eventHandler = require("./handler/eventHandler");
 const interrogatorGenerate = require("./utils/interrogatorGenerate");
 const captionGenerate = require("./utils/captionGenerate");
+const sosmedGenerate = require("./utils/sosmedGenerate");
+const audioGenerate = require("./utils/audioGenerate");
+const checkNsfwImage = require("./utils/checkNsfwImage");
+const characterSakuraA = require("./utils/sakuragpt/characterSakuraA");
+const characterSakuraB = require("./utils/sakuragpt/characterSakuraB");
 const configuration = new Configuration({
   organization: process.env.OPENAI_ORG,
   apiKey: process.env.OPENAI_KEY,
@@ -257,44 +262,79 @@ client.on("messageCreate", async function (message) {
       },
       {
         role: "system",
-        content: "Here is a formula for a SD or Stable Diffusion image prompt: An image of [adjective] [subject] [doing action], [creative lighting style], detailed, realistic, trending on artstation, in style of [famous artist 1], [famous artist 2], [famous artist 3].",
+        content:
+          "Here is a formula for a SD or Stable Diffusion image prompt: An image of [adjective] [subject] [doing action], [creative lighting style], detailed, realistic, trending on artstation, in style of [famous artist 1], [famous artist 2], [famous artist 3].",
       },
     ];
 
     if (
       message.channel.id !== process.env.CHANNEL_ID_REMIX_ID &&
-      message.channel.id !== process.env.CHANNEL_ID_AI_INDONESIA
+      message.channel.id !== process.env.CHANNEL_ID_REMIX_ID_DIANA_GPT &&
+      message.channel.id !== process.env.CHANNEL_ID_AI_INDONESIA &&
+      message.channel.id !== process.env.CHANNEL_ID_TKK_1 &&
+      message.channel.id !== process.env.CHANNEL_ID_TKK_2 &&
+      message.channel.id !== process.env.CHANNEL_ID_TKK_3 &&
+      message.channel.id !== process.env.CHANNEL_ID_TKK_4 &&
+      message.channel.id !== process.env.CHANNEL_ID_TKK_5
     ) {
       if (message.content.startsWith("!")) {
-        await message.channel.sendTyping();
-        let prevMessages = await message.channel.messages.fetch({ limit: 15 });
-        prevMessages.reverse();
-        prevMessages.forEach((msg) => {
-          if (msg.author.id !== client.user.id && message.author.bot) return;
-          if (msg.author.id !== message.author.id) return;
-
-          conversationLog.push({
-            role: "user",
-            content: msg.content,
+        if (message.attachments.size > 0) {
+          // Iterate through each attachment
+          message.attachments.forEach((attachment) => {
+            // Check if the attachment is an image
+            if (attachment.contentType.startsWith("image")) {
+              // Get the URL of the image
+              const imageUrl = attachment.url;
+              if (message.content.startsWith("!caption")) {
+                captionGenerate(message, imageUrl);
+              } else if (message.content.startsWith("!sosmed")) {
+                sosmedGenerate(message, imageUrl);
+              }
+            }
           });
-        });
-
-        const result = await openai.createChatCompletion({
-          model: "gpt-3.5-turbo",
-          messages: conversationLog,
-        });
-
-        const content = result.data.choices[0].message.content;
-        if (content.length <= 2000) {
-          // If content is within the limit, send it normally
-          message.reply(content);
         } else {
-          // Split the content into smaller chunks and send them separately
-          const chunks = splitContent(content, 2000);
-          for (let chunk of chunks) {
-            message.reply(chunk);
+          await message.channel.sendTyping();
+          let prevMessages = await message.channel.messages.fetch({
+            limit: 15,
+          });
+          prevMessages.reverse();
+          prevMessages.forEach((msg) => {
+            if (msg.author.id !== client.user.id && message.author.bot) return;
+            if (msg.author.id !== message.author.id) return;
+
+            conversationLog.push({
+              role: "user",
+              content: msg.content,
+            });
+          });
+
+          const result = await openai.createChatCompletion({
+            model: "gpt-4",
+            messages: conversationLog,
+          });
+
+          const content = result.data.choices[0].message.content;
+          if (content.length <= 2000) {
+            // If content is within the limit, send it normally
+            message.reply(content);
+          } else {
+            // Split the content into smaller chunks and send them separately
+            const chunks = splitContent(content, 2000);
+            for (let chunk of chunks) {
+              message.reply(chunk);
+            }
           }
         }
+      } else if (
+        message.channel.id == process.env.CHANNEL_ID_AI_INDONESIA_SAKURA_1
+      ) {
+        let user_id_discord = client.user.id;
+        await characterSakuraA(message, user_id_discord);
+      }else if (
+        message.channel.id == process.env.CHANNEL_ID_AI_INDONESIA_SAKURA_2
+      ) {
+        let user_id_discord = client.user.id;
+        await characterSakuraB(message, user_id_discord);
       } else if (message.content.startsWith("?")) {
         await message.channel.sendTyping();
         messagesPalm.push({ content: message.content.substring(1) });
@@ -338,6 +378,110 @@ client.on("messageCreate", async function (message) {
               message.reply("G ada jawaban..");
             }
           });
+      } else if (message.attachments.size > 0) {
+        const cuteEmojis = [
+          "😊",
+          "🥰",
+          "😻",
+          "💖",
+          "🌸",
+          "🐾",
+          "🌼",
+          "🍭",
+          "🎈",
+          "🥇",
+          "❤️",
+        ];
+
+        // Function to get a random cute emoji
+        function getRandomCuteEmoji() {
+          const randomIndex = Math.floor(Math.random() * cuteEmojis.length);
+          return cuteEmojis[randomIndex];
+        }
+
+        // Array of random relocation messages
+        const relocationMessages = [
+          "Your images have been relocated to",
+          "We moved your images to",
+          "The images have been transferred to",
+          "Your images were relocated to",
+          "Your images were moved to a different location",
+        ];
+
+        // Function to get a random relocation message
+        function getRandomRelocationMessage() {
+          const randomIndex = Math.floor(
+            Math.random() * relocationMessages.length
+          );
+          return relocationMessages[randomIndex];
+        }
+
+        async function processAttachments(message) {
+          const promises = message.attachments
+            .filter((attachment) => attachment.contentType.startsWith("image"))
+            .map(async (attachment) => {
+              if (!message.channel.nsfw) {
+                return await checkNsfwImage(message, attachment.url);
+              } else {
+                message.react(getRandomCuteEmoji());
+                message.react(getRandomCuteEmoji());
+              }
+              return false; // If it's an NSFW channel, set it to false
+            });
+
+          const results = await Promise.all(promises);
+
+          return results.some((result) => result); // Check if at least one is true
+        }
+
+        // Usage
+        // async function handleMessage(message) {
+        //   const finalStatusNsfw = await processAttachments(message);
+        //   if (finalStatusNsfw) {
+        //     message.delete();
+        //     message.channel.send(
+        //       `${message.author.toString()} Your image was deleted (NSFW)`
+        //     );
+        //   }
+        // }
+
+        async function handleMessage(message) {
+          const finalStatusNsfw = await processAttachments(message);
+          if (finalStatusNsfw) {
+            // Do something if at least one attachment is NSFW
+            // const channelId = "1167432658540834979";
+            const channelId = "1116611387138002965";
+            const channel = client.channels.cache.get(channelId);
+            const attachmentUrls = message.attachments
+              .filter((att) => att.contentType.startsWith("image"))
+              .map((att) => att.url);
+            if (channel) {
+              channel
+                .send({
+                  content: `${
+                    message.content
+                  } \nby ${message.author.toString()}`,
+                  files: attachmentUrls,
+                })
+                .then((sentMessage) => {
+                  sentMessage.react(getRandomCuteEmoji());
+                  sentMessage.react(getRandomCuteEmoji());
+                  sentMessage.react("✉️");
+                  const messageLink = sentMessage.url;
+                  // message.reply(`move to : ${messageLink}`);
+                  message.delete();
+                  message.channel.send(
+                    `${message.author.toString()} ${getRandomRelocationMessage()} : ${messageLink}`
+                  );
+                  return;
+                })
+                .catch(console.error);
+            }
+          }
+        }
+
+        // Example usage:
+        handleMessage(message);
       }
     } else {
       if (message.content.startsWith("!")) {
@@ -351,11 +495,15 @@ client.on("messageCreate", async function (message) {
             const imageUrl = attachment.url;
             if (message.content.startsWith("caption")) {
               captionGenerate(message, imageUrl);
+            } else if (message.content.startsWith("sosmed")) {
+              sosmedGenerate(message, imageUrl);
             } else {
               interrogatorGenerate(message, imageUrl);
             }
           }
         });
+      } else if (message.content.startsWith("tts")) {
+        audioGenerate(message);
       } else {
         await message.channel.sendTyping();
 
@@ -373,7 +521,7 @@ client.on("messageCreate", async function (message) {
         });
         console.log(conversationLog);
         const result = await openai.createChatCompletion({
-          model: "gpt-3.5-turbo",
+          model: "gpt-4",
           messages: conversationLog,
         });
 
